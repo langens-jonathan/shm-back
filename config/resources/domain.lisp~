@@ -1,0 +1,120 @@
+(in-package :mu-cl-resources)
+
+;;;;
+;; NOTE
+;; docker-compose stop; docker-compose rm; docker-compose up
+;; after altering this file.
+
+;; Describe your resources here
+
+;; The general structure could be described like this:
+;;
+;; (define-resource <name-used-in-this-file> ()
+;;   :class <class-of-resource-in-triplestore>
+;;   :properties `((<json-property-name-one> <type-one> ,<triplestore-relation-one>)
+;;                 (<json-property-name-two> <type-two> ,<triplestore-relation-two>>))
+;;   :has-many `((<name-of-an-object> :via ,<triplestore-relation-to-objects>
+;;                                    :as "<json-relation-property>")
+;;               (<name-of-an-object> :via ,<triplestore-relation-from-objects>
+;;                                    :inverse t ; follow relation in other direction
+;;                                    :as "<json-relation-property>"))
+;;   :has-one `((<name-of-an-object :via ,<triplestore-relation-to-object>
+;;                                  :as "<json-relation-property>")
+;;              (<name-of-an-object :via ,<triplestore-relation-from-object>
+;;                                  :as "<json-relation-property>"))
+;;   :resource-base (s-url "<string-to-which-uuid-will-be-appended-for-uri-of-new-items-in-triplestore>")
+;;   :on-path "<url-path-on-which-this-resource-is-available>")
+
+(define-resource tenant ()
+  :class (s-prefix "real:Tenant")
+  :properties `((:name :string ,(s-prefix "foaf:name"))
+                (:address :string ,(s-prefix "real:address")))
+  :has-many `((contract :via ,(s-prefix "real:hasContract")
+                        :as "contracts")
+              (payment :via ,(s-prefix "real:paid")
+                       :as "payments"))
+)
+
+(define-resource room ()
+  :class (s-prefix "real:Room")
+  :properties `((:name :string ,(s-prefix "dct:title")))
+  :has-many `((contract :via ,(s-prefix "real:hasContract")))
+)
+
+(define-resource contract ()
+  :class (s-prefix "real:Contract")
+  :properties `((:start-date :string ,(s-prefix "real:startDate"))
+                (:end-date :string ,(s-prefix "real:endDate"))
+                (:deposit :string ,(s-prefix "real:deposit")))
+  :has-one `((tenant :via ,(s-prefix "real:ownedBy")
+                     :inverse t
+                     :as "tenant")
+             (room :via ,(s-prefix "real:operatesOn")
+                   :inverse t
+                   :as "room"))
+  :has-many `((debt :via ,(s-prefix "real:debt")
+                    :as "debts"))
+)
+
+(define-resource debt ()
+  :class (s-prefix "real:Debt")
+  :properties `((:amount :string ,(s-prefix "real:amount"))
+               (:fullfilled :string ,(s-prefix "real:fullfilled")))
+  :has-one `((contract :via ,(s-prefix "real:onContract")
+                       :inverse t
+                       :as "contract"))
+  :has-many `((payment :via ,(s-prefix "real:payedBy")
+                       :inverse t
+                       :as "payments"))
+)
+
+(define-resource payment ()
+  :class (s-prefix "real:Payment")
+  :properties `((:amount :string ,(s-prefix "real:amount")))
+  :has-many `((debt :via ,(s-prefix "real:payedFor")
+                    :as "debts"))
+  :has-one `((tenant :via ,(s-prefix "real:hasTenant")
+                     :inverse t
+                     :as "tenant"))
+)
+
+
+;; An example setup with a catalog, dataset, themes would be:
+;;
+;; (define-resource catalog ()
+;;   :class (s-prefix "dcat:Catalog")
+;;   :properties `((:title :string ,(s-prefix "dct:title")))
+;;   :has-many `((dataset :via ,(s-prefix "dcat:dataset")
+;;                        :as "datasets"))
+;;   :resource-base (s-url "http://webcat.tmp.semte.ch/catalogs/")
+;;   :on-path "catalogs")
+
+;; (define-resource dataset ()
+;;   :class (s-prefix "dcat:Dataset")
+;;   :properties `((:title :string ,(s-prefix "dct:title"))
+;;                 (:description :string ,(s-prefix "dct:description")))
+;;   :has-one `((catalog :via ,(s-prefix "dcat:dataset")
+;;                       :inverse t
+;;                       :as "catalog"))
+;;   :has-many `((theme :via ,(s-prefix "dcat:theme")
+;;                      :as "themes"))
+;;   :resource-base (s-url "http://webcat.tmp.tenforce.com/datasets/")
+;;   :on-path "datasets")
+
+;; (define-resource distribution ()
+;;   :class (s-prefix "dcat:Distribution")
+;;   :properties `((:title :string ,(s-prefix "dct:title"))
+;;                 (:access-url :url ,(s-prefix "dcat:accessURL")))
+;;   :resource-base (s-url "http://webcat.tmp.tenforce.com/distributions/")
+;;   :on-path "distributions")
+
+;; (define-resource theme ()
+;;   :class (s-prefix "tfdcat:Theme")
+;;   :properties `((:pref-label :string ,(s-prefix "skos:prefLabel")))
+;;   :has-many `((dataset :via ,(s-prefix "dcat:theme")
+;;                        :inverse t
+;;                        :as "datasets"))
+;;   :resource-base (s-url "http://webcat.tmp.tenforce.com/themes/")
+;;   :on-path "themes")
+
+;;
